@@ -22,11 +22,6 @@ class Top(init: Seq[Int]) extends Module {
   writeHexSeqToFile(init, "build/memory-initialization.txt")
   loadMemoryFromFileInline(memory, "build/memory-initialization.txt")
 
-  val heapifier = Module(new Heapifier(init.length))
-  heapifier.io.memory.readValue := memory.read(heapifier.io.memory.readAddress)
-  when(heapifier.io.memory.writeEnable) {
-    memory.write(heapifier.io.memory.writeAddress, heapifier.io.memory.writeValue)
-  }
 
 }
 

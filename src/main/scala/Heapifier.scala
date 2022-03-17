@@ -1,9 +1,9 @@
-import Types.MemoryIO
+
 import chisel3._
 import chisel3.experimental.ChiselEnum
 import chisel3.util._
-import Heapifier.State
 
+/*
 object Heapifier {
 
   object State extends ChiselEnum {
@@ -15,7 +15,7 @@ object Heapifier {
 class Heapifier(heapSize: Int) extends Module {
 
   val io = IO(new Bundle {
-    val memory = Flipped(new MemoryIO)
+    val memory = Flipped(new MemoryIO(log2Ceil(heapSize)))
     val request = Flipped(Decoupled(new Bundle {
       val index = UInt(log2Ceil(heapSize).W)
     }))
@@ -84,3 +84,4 @@ class Heapifier(heapSize: Int) extends Module {
 
 
 }
+*/
