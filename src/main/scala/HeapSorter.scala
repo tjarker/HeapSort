@@ -1,12 +1,9 @@
 import chisel3._
+import chisel3.util.isPow2
 
 
 object HeapSorter {
-  case class HeapParameters(
-                             n: Int, // Maximum number of elements
-                             k: Int, // Order of the heap
-                             w: Int, // item width
-                           )
+
 }
 
 class HeapSorter extends Module {

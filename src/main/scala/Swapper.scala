@@ -1,5 +1,5 @@
 
-import HeapSorter.HeapParameters
+
 import Swapper.State
 import chisel3._
 import chisel3.experimental.ChiselEnum
@@ -7,40 +7,38 @@ import chisel3.util._
 
 object Swapper {
 
-  class Request(params: HeapParameters) extends Bundle {
+  class Request(params: Heap.Parameters) extends Bundle {
     import params._
-    val values = Vec(2, Indexed(UInt(w.W)))
-    val valid = Bool()
+    val values = Input(Vec(2, Indexed(log2Ceil(n).W, UInt(w.W))))
+    val valid = Input(Bool())
+    val ready = Output(Bool())
   }
-  class Response extends Bundle {
-    val done = Bool()
-  }
-
   object State extends ChiselEnum {
     val Idle, WriteFirst, WriteSecond = Value
   }
 
 }
 
-class Swapper(params: HeapParameters) extends Module {
+class Swapper(params: Heap.Parameters) extends Module {
   import params._
 
   val io = IO(new Bundle {
-    val req = Input(new Swapper.Request(params))
-    val res = Output(new Swapper.Response)
-    val mem = new Memory.WriteAccess(params)
+    val req = new Swapper.Request(params)
+    val mem = new HeapMemory.WriteAccess(params)
   })
 
   val stateReg = RegInit(State.Idle)
-  val valuesReg = Reg(Vec(2, Indexed(UInt(w.W))))
+  val valuesReg = Reg(Vec(2, Indexed(log2Ceil(n).W, UInt(w.W))))
 
-  io.res.done := 0.B
+  io.req.ready := 0.B
+  io.mem := DontCare
+  io.mem.valid := 0.B
 
   switch(stateReg) {
     is(State.Idle) {
       stateReg := Mux(io.req.valid, State.WriteFirst, State.Idle)
       valuesReg := io.req.values
-      io.res.done := 1.B
+      io.req.ready := 1.B
     }
     is(State.WriteFirst) {
       stateReg := State.WriteSecond

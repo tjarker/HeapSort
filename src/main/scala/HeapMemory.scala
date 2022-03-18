@@ -1,38 +1,37 @@
 
-import Chisel.UIntToOH
-import HeapSorter.HeapParameters
 import chisel3._
-import chisel3.util.log2Ceil
-import Memory.split
+import chisel3.util.{log2Ceil, UIntToOH}
+import HeapMemory.split
 
-object Memory {
+object HeapMemory {
 
-  class ReadAccess(params: HeapParameters) extends Bundle {
+  class ReadAccess(params: Heap.Parameters) extends Bundle {
     import params._
     val index = Output(UInt(log2Ceil(n).W))
     val withSiblings = Output(Bool())
     val values = Input(Vec(k, UInt(w.W)))
   }
 
-  class WriteAccess(params: HeapParameters) extends Bundle {
+  class WriteAccess(params: Heap.Parameters) extends Bundle {
     import params._
     val index = Output(UInt(log2Ceil(n).W))
     val value = Output(UInt(w.W))
     val valid = Output(Bool())
   }
 
-  def split(index: UInt)(at: Int): (UInt,UInt) = index(index.getWidth - 1, at) -> index(at,0)
+  // split UInt at given index (index is included in upper chunk)
+  def split(index: UInt)(at: Int): (UInt,UInt) = index(index.getWidth - 1, at) -> index(at - 1, 0)
 
 
 }
 
-class Memory(params: HeapParameters) extends Module {
+class HeapMemory(params: Heap.Parameters) extends Module {
   import params._
 
 
   val io = IO(new Bundle {
-    val read = Flipped(new Memory.ReadAccess(params))
-    val write = Flipped(new Memory.WriteAccess(params))
+    val read = Flipped(new HeapMemory.ReadAccess(params))
+    val write = Flipped(new HeapMemory.WriteAccess(params))
     val root = Output(UInt(w.W))
   })
 
@@ -63,5 +62,5 @@ class Memory(params: HeapParameters) extends Module {
 }
 
 object MemoryEmitter extends App {
-  emitVerilog(new Memory(HeapParameters(4096*4,4,8)))
+  emitVerilog(new HeapMemory(Heap.Parameters(4096*4,4,8)))
 }

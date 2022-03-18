@@ -1,23 +1,21 @@
 
 import Fetcher.State
-import HeapSorter.HeapParameters
 import chisel3._
 import chisel3.experimental.ChiselEnum
 import chisel3.util._
 
 object Fetcher {
 
-  class Request(params: HeapParameters) extends Bundle {
+  class Request(params: Heap.Parameters) extends Bundle {
     import params._
     val index = UInt(log2Ceil(n).W)
     val size = UInt(log2Ceil(n).W)
     val valid = Bool()
   }
-  class Response(params: HeapParameters) extends Bundle {
+  class Response(params: Heap.Parameters) extends Bundle {
     import params._
-    val parent = Indexed(UInt(w.W))
-    val children = Vec(k, Indexed(UInt(w.W)))
-    val mask = Vec(k, Bool())
+    val parent = Indexed(log2Ceil(n).W, UInt(w.W))
+    val children = Vec(k, ValidTagged(Indexed(log2Ceil(n).W, UInt(w.W))))
     val valid = Bool()
   }
   object State extends ChiselEnum {
@@ -25,13 +23,13 @@ object Fetcher {
   }
 }
 
-class Fetcher(params: HeapParameters) extends Module {
+class Fetcher(params: Heap.Parameters) extends Module {
   import params._
 
   val io = IO(new Bundle {
     val req = Input(new Fetcher.Request(params))
     val res = Output(new Fetcher.Response(params))
-    val mem = new Memory.ReadAccess(params)
+    val mem = new HeapMemory.ReadAccess(params)
   })
 
   val stateReg = RegInit(State.Idle)
@@ -45,8 +43,10 @@ class Fetcher(params: HeapParameters) extends Module {
   val childrenReg = RegInit(VecInit(Seq.fill(k)(0.U(w.W))))
   val maskReg = RegInit(VecInit(Seq.fill(k)(0.B)))
   io.res.parent := Indexed.fromTuple(parentReg -> parentIndexReg)
-  io.res.children := childrenReg.zip(childIndexReg).map(Indexed.fromTuple)
-  io.res.mask := maskReg
+
+  io.res.children := (childrenReg, childIndexReg, maskReg).zipped.map { case (item, index, valid) =>
+    ValidTagged(valid, Indexed.fromTuple(item -> index))
+  }
 
   io.res.valid := 0.B
   io.mem.withSiblings := 0.B
@@ -89,5 +89,5 @@ class Fetcher(params: HeapParameters) extends Module {
 }
 
 object Emitter extends App {
-  emitVerilog(new Fetcher(HeapParameters(32,4,8)))
+  emitVerilog(new Fetcher(Heap.Parameters(32,4,8)))
 }
