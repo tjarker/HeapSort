@@ -1,87 +1,69 @@
-
+import util.{Indexed, ValidTagged, Max}
+import Heapifier.State
 import chisel3._
 import chisel3.experimental.ChiselEnum
 import chisel3.util._
 
-/*
 object Heapifier {
 
+  class Response(params: Heap.Parameters) extends Bundle {
+    import params._
+    val largest = UInt(log2Ceil(n+1).W)
+    val swapped = Bool()
+    val valid = Bool()
+  }
   object State extends ChiselEnum {
-    val Idle, ReceiveParent, ReceiveLeftChild, ReceiveRightChildAndCompare, RequestLeftChild = Value
+    val Idle, IssueSwap, WaitForSwap = Value
   }
 
 }
 
-class Heapifier(heapSize: Int) extends Module {
+class Heapifier(params: Heap.Parameters) extends Module {
+  import params._
 
   val io = IO(new Bundle {
-    val memory = Flipped(new MemoryIO(log2Ceil(heapSize)))
-    val request = Flipped(Decoupled(new Bundle {
-      val index = UInt(log2Ceil(heapSize).W)
-    }))
+    val res = Output(new Heapifier.Response(params))
+    val fetcher = Input(new Fetcher.Response(params))
+    val swapper = Flipped(new Swapper.Request(params))
   })
-  io.memory := 0.U.asTypeOf(io.memory)
-
-  def leftChildIndex(x: UInt): UInt = (x << 1).asUInt
-  def rightChildIndex(x: UInt): UInt = (x << 1).asUInt + 1.U
 
   val stateReg = RegInit(State.Idle)
+  val maxItemReg = RegEnable(
+    Max(ValidTagged(1.B, io.fetcher.parent), io.fetcher.children),
+    io.fetcher.valid
+  )
+  val swapRequired = maxItemReg.index =/= io.fetcher.parent.index
+  val swapRequiredReg = RegInit(0.B)
 
+  io.res.largest := maxItemReg.index
+  io.res.swapped := swapRequiredReg
+  io.res.valid := 0.B
 
-  val indexReg = Reg(UInt(log2Ceil(heapSize).W))
-  val parentReg = Reg(UInt(32.W))
-  val leftChildReg = Reg(UInt(32.W))
-  val rightChild = WireDefault(io.memory.readValue)
-  val captureLargest = WireDefault(0.B)
-  val largest = RegEnable(Max(leftChildReg, rightChild, parentReg), captureLargest)
-  val largestIsParent = largest.index === 0.U
-  val nextParent = indexReg + largest.index
+  io.swapper.values(0) := io.fetcher.parent
+  io.swapper.values(1) := maxItemReg
+  io.swapper.valid := 0.B
 
   switch(stateReg) {
     is(State.Idle) {
-      io.request.ready := 1.B
-      indexReg := io.request.bits.index
-      io.memory.readAddress := io.request.bits.index
-      when(io.request.valid) {
-        stateReg := State.ReceiveParent
+      stateReg := Mux(RegNext(!io.fetcher.valid) && io.fetcher.valid, State.IssueSwap, State.Idle)
+    }
+    is(State.IssueSwap) {
+      swapRequiredReg := swapRequired
+      when(swapRequired) {
+        io.swapper.valid := 1.B
+        stateReg := State.WaitForSwap
+      } otherwise {
+        stateReg := State.Idle
+        io.res.valid := 1.B
+        io.res.swapped := 0.B
       }
     }
-    is(State.ReceiveParent) {
-      parentReg := io.memory.readValue
-
-      io.memory.readAddress := leftChildIndex(indexReg)
-
-      stateReg := State.ReceiveLeftChild
-    }
-    is(State.ReceiveLeftChild) {
-
-      leftChildReg := io.memory.readValue
-
-      io.memory.readAddress := rightChildIndex(indexReg)
-
-      stateReg := State.ReceiveRightChildAndCompare
-    }
-    is(State.ReceiveRightChildAndCompare) {
-      captureLargest := 1.B
-
-      stateReg := State.RequestLeftChild
-    }
-    is(State.RequestLeftChild) {
-
-      io.memory.writeAddress := indexReg
-      io.memory.writeValue := largest.item
-      io.memory.writeEnable := !largestIsParent
-
-      io.memory.readAddress := leftChildIndex(nextParent)
-
-      indexReg := nextParent
-      parentReg := largest.item
-
-      stateReg := Mux(largestIsParent, State.Idle, State.ReceiveLeftChild)
-
+    is(State.WaitForSwap) {
+      stateReg := Mux(io.swapper.ready, State.Idle, State.WaitForSwap)
+      when(io.swapper.ready) {
+        io.res.valid := 1.B
+      }
     }
   }
 
-
 }
-*/

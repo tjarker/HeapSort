@@ -1,9 +1,10 @@
-import chisel3.util.log2Ceil
-
 import java.io.{File, PrintWriter}
 
-object util {
+package object util {
 
+  implicit class Transposable(x: Seq[Seq[Int]]) {
+    def transposed: Seq[Seq[Int]] = Seq.tabulate(x.head.length)(i => x.map(_(i)))
+  }
   def transpose(x: Seq[Seq[Int]]): Seq[Seq[Int]] =
     Seq.tabulate(x.head.length)(i => x.map(_(i)))
 

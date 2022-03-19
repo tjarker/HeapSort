@@ -1,4 +1,5 @@
 
+import util.{Indexed, ValidTagged}
 import Fetcher.State
 import chisel3._
 import chisel3.experimental.ChiselEnum
@@ -8,14 +9,14 @@ object Fetcher {
 
   class Request(params: Heap.Parameters) extends Bundle {
     import params._
-    val index = UInt(log2Ceil(n).W)
-    val size = UInt(log2Ceil(n).W)
+    val index = UInt(log2Ceil(n+1).W)
+    val size = UInt(log2Ceil(n+2).W)
     val valid = Bool()
   }
   class Response(params: Heap.Parameters) extends Bundle {
     import params._
-    val parent = Indexed(log2Ceil(n).W, UInt(w.W))
-    val children = Vec(k, ValidTagged(Indexed(log2Ceil(n).W, UInt(w.W))))
+    val parent = Indexed(log2Ceil(n+1).W, UInt(w.W))
+    val children = Vec(k, ValidTagged(Indexed(log2Ceil(n+1).W, UInt(w.W))))
     val valid = Bool()
   }
   object State extends ChiselEnum {
@@ -35,10 +36,10 @@ class Fetcher(params: Heap.Parameters) extends Module {
   val stateReg = RegInit(State.Idle)
   val validReg = RegInit(0.B)
 
-  val sizeReg = RegInit(0.U(log2Ceil(n).W))
+  val sizeReg = RegInit(0.U(log2Ceil(n+2).W))
 
-  val parentIndexReg = RegInit(0.U(log2Ceil(n).W))
-  val childIndexReg = RegInit(VecInit(Seq.fill(k)(0.U(log2Ceil(n).W))))
+  val parentIndexReg = RegInit(0.U(log2Ceil(n+1).W))
+  val childIndexReg = RegInit(VecInit(Seq.fill(k)(0.U(log2Ceil(n+1).W))))
   val parentReg = RegInit(0.U(w.W))
   val childrenReg = RegInit(VecInit(Seq.fill(k)(0.U(w.W))))
   val maskReg = RegInit(VecInit(Seq.fill(k)(0.B)))

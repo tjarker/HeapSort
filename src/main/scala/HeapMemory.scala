@@ -7,14 +7,14 @@ object HeapMemory {
 
   class ReadAccess(params: Heap.Parameters) extends Bundle {
     import params._
-    val index = Output(UInt(log2Ceil(n).W))
+    val index = Output(UInt(log2Ceil(n+1).W))
     val withSiblings = Output(Bool())
     val values = Input(Vec(k, UInt(w.W)))
   }
 
   class WriteAccess(params: Heap.Parameters) extends Bundle {
     import params._
-    val index = Output(UInt(log2Ceil(n).W))
+    val index = Output(UInt(log2Ceil(n+1).W))
     val value = Output(UInt(w.W))
     val valid = Output(Bool())
   }
@@ -35,7 +35,7 @@ class HeapMemory(params: Heap.Parameters) extends Module {
     val root = Output(UInt(w.W))
   })
 
-
+  println(s"size per bank = ${n/k}")
   val banks = Seq.fill(k)(SyncReadMem(n/k, UInt(w.W)))
   val rootReg = RegInit(0.U(w.W))
   io.root := rootReg

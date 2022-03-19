@@ -1,5 +1,5 @@
 
-
+import util.Indexed
 import Swapper.State
 import chisel3._
 import chisel3.experimental.ChiselEnum
@@ -9,7 +9,7 @@ object Swapper {
 
   class Request(params: Heap.Parameters) extends Bundle {
     import params._
-    val values = Input(Vec(2, Indexed(log2Ceil(n).W, UInt(w.W))))
+    val values = Input(Vec(2, Indexed(log2Ceil(n+1).W, UInt(w.W))))
     val valid = Input(Bool())
     val ready = Output(Bool())
   }
@@ -28,7 +28,7 @@ class Swapper(params: Heap.Parameters) extends Module {
   })
 
   val stateReg = RegInit(State.Idle)
-  val valuesReg = Reg(Vec(2, Indexed(log2Ceil(n).W, UInt(w.W))))
+  val valuesReg = Reg(Vec(2, Indexed(log2Ceil(n+1).W, UInt(w.W))))
 
   io.req.ready := 0.B
   io.mem := DontCare

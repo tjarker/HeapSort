@@ -1,8 +1,9 @@
+import util.writeHexSeqToFile
 import chisel3._
 import chisel3.util.experimental.loadMemoryFromFileInline
 import firrtl.annotations.MemorySynthInit
-import util.writeHexSeqToFile
 import chisel3.experimental.{ChiselAnnotation, annotate}
+
 
 import scala.io.Source
 
@@ -14,8 +15,7 @@ class Top(init: Seq[Int]) extends Module {
   })
 
   annotate(new ChiselAnnotation {
-    override def toFirrtl =
-      MemorySynthInit
+    override def toFirrtl = MemorySynthInit
   })
 
   val memory = SyncReadMem(init.length, UInt(32.W))
