@@ -35,7 +35,6 @@ class HeapMemory(params: Heap.Parameters) extends Module {
     val root = Output(UInt(w.W))
   })
 
-  println(s"size per bank = ${n/k}")
   val banks = Seq.fill(k)(SyncReadMem(n/k, UInt(w.W)))
   val rootReg = RegInit(0.U(w.W))
   io.root := rootReg
@@ -59,8 +58,4 @@ class HeapMemory(params: Heap.Parameters) extends Module {
     }
   }
 
-}
-
-object MemoryEmitter extends App {
-  emitVerilog(new HeapMemory(Heap.Parameters(4096*4,4,8)))
 }

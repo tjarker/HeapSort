@@ -37,6 +37,7 @@ class Heap(params: Heap.Parameters) extends Module {
     val memory = Module(new HeapMemory(params))
     val control = Module(new HeapControl(params))
     val heapifier = Module(new Heapifier(params))
+    val maxFinder = Module(new MaxFinder(params))
   }
 
   when(Components.control.io.mem.requestRead) {
@@ -53,7 +54,8 @@ class Heap(params: Heap.Parameters) extends Module {
     Components.memory.io.write <> Components.swapper.io.mem
   }
   Components.fetcher.io.req <> Components.control.io.fetcher
-  Components.fetcher.io.res <> Components.heapifier.io.fetcher
+  Components.fetcher.io.res <> Components.maxFinder.io.fetcher
+  Components.heapifier.io.maxFinder <> Components.maxFinder.io.res
   Components.heapifier.io.res <> Components.control.io.heapifier
   Components.heapifier.io.swapper <> Components.swapper.io.req
 
@@ -65,11 +67,4 @@ class Heap(params: Heap.Parameters) extends Module {
   io.empty := Components.control.io.req.empty
   io.root := Components.memory.io.root
 
-
-
-
-}
-
-object HeapEmitter extends App {
-  emitVerilog(new Heap(Heap.Parameters(4*4096, 8, 16)))
 }

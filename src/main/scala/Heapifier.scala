@@ -1,4 +1,4 @@
-import util.{Indexed, ValidTagged, Max}
+import util.{Indexed, ValidTagged}
 import Heapifier.State
 import chisel3._
 import chisel3.experimental.ChiselEnum
@@ -23,29 +23,25 @@ class Heapifier(params: Heap.Parameters) extends Module {
 
   val io = IO(new Bundle {
     val res = Output(new Heapifier.Response(params))
-    val fetcher = Input(new Fetcher.Response(params))
+    val maxFinder = Input(new MaxFinder.Result(params))
     val swapper = Flipped(new Swapper.Request(params))
   })
 
   val stateReg = RegInit(State.Idle)
-  val maxItemReg = RegEnable(
-    Max(ValidTagged(1.B, io.fetcher.parent), io.fetcher.children),
-    io.fetcher.valid
-  )
-  val swapRequired = maxItemReg.index =/= io.fetcher.parent.index
+  val swapRequired = !io.maxFinder.isParent
   val swapRequiredReg = RegInit(0.B)
 
-  io.res.largest := maxItemReg.index
+  io.res.largest := io.maxFinder.largest.index
   io.res.swapped := swapRequiredReg
   io.res.valid := 0.B
 
-  io.swapper.values(0) := io.fetcher.parent
-  io.swapper.values(1) := maxItemReg
+  io.swapper.values(0) := io.maxFinder.parent
+  io.swapper.values(1) := io.maxFinder.largest
   io.swapper.valid := 0.B
 
   switch(stateReg) {
     is(State.Idle) {
-      stateReg := Mux(RegNext(!io.fetcher.valid) && io.fetcher.valid, State.IssueSwap, State.Idle)
+      stateReg := Mux(RegNext(!io.maxFinder.valid) && io.maxFinder.valid, State.IssueSwap, State.Idle)
     }
     is(State.IssueSwap) {
       swapRequiredReg := swapRequired

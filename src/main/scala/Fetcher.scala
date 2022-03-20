@@ -88,7 +88,3 @@ class Fetcher(params: Heap.Parameters) extends Module {
   }
 
 }
-
-object Emitter extends App {
-  emitVerilog(new Fetcher(Heap.Parameters(32,4,8)))
-}

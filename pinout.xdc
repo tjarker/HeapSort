@@ -27,11 +27,11 @@ create_clock -add -name sys_clk_pin -period 10.00 -waveform {0 5} [get_ports {cl
 
 
 ## LEDs
-set_property PACKAGE_PIN U16 [get_ports {io_value[0]}]
-set_property PACKAGE_PIN E19 [get_ports {io_value[1]}]
-set_property PACKAGE_PIN U19 [get_ports {io_value[2]}]
-set_property PACKAGE_PIN V19 [get_ports {io_value[3]}]
-set_property PACKAGE_PIN W18 [get_ports {io_value[4]}]
+set_property PACKAGE_PIN U16 [get_ports {io_done}]
+#set_property PACKAGE_PIN E19 [get_ports {io_value[1]}]
+#set_property PACKAGE_PIN U19 [get_ports {io_value[2]}]
+#set_property PACKAGE_PIN V19 [get_ports {io_value[3]}]
+#set_property PACKAGE_PIN W18 [get_ports {io_value[4]}]
 #set_property PACKAGE_PIN U15 [get_ports {led[5]}]
 #set_property PACKAGE_PIN U14 [get_ports {led[6]}]
 #set_property PACKAGE_PIN V14 [get_ports {led[7]}]
@@ -109,7 +109,7 @@ set_property PACKAGE_PIN W18 [get_ports {io_value[4]}]
 
 
 ##Pmod Header JB
-set_property PACKAGE_PIN A14 [get_ports {io_go}]
+#set_property PACKAGE_PIN A14 [get_ports {io_go}]
 set_property PACKAGE_PIN A16 [get_ports {reset}]
 #set_property PACKAGE_PIN B15 [get_ports {JB[2]}]
 #set_property PACKAGE_PIN B16 [get_ports {JB[3]}]
