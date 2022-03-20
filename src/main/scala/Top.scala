@@ -1,30 +1,26 @@
 import Top.State
-import util.writeHexSeqToFile
+import util.{writeHexSeqToFile, nextPow2}
 import chisel3._
 import chisel3.util.experimental.loadMemoryFromFileInline
 import firrtl.annotations.MemorySynthInit
 import chisel3.experimental.{ChiselAnnotation, ChiselEnum, annotate}
 import chisel3.util._
-
 import scala.io.Source
 
-object Top {
-  object State extends ChiselEnum {
-    val Idle, IssueInsert, WaitInsert, IssueRemove, WaitRemove, Done = Value
-  }
-}
 
-class Top(params: Heap.Parameters, init: Seq[Int]) extends Module {
+class Top(params: Heap.Parameters, init: Seq[BigInt]) extends Module {
+  import params._
 
   val io = IO(new Bundle {
     val done = Output(Bool())
+    val minimum = Output(UInt(15.W))
   })
 
   annotate(new ChiselAnnotation {
     override def toFirrtl = MemorySynthInit
   })
 
-  val memory = SyncReadMem(init.length, UInt(32.W))
+  val memory = SyncReadMem(init.length, UInt(w.W))
   writeHexSeqToFile(init, "build/memory-initialization.txt")
   loadMemoryFromFileInline(memory, "build/memory-initialization.txt")
 
@@ -34,6 +30,11 @@ class Top(params: Heap.Parameters, init: Seq[Int]) extends Module {
   val pointerReg = RegInit(0.U(log2Ceil(init.length + 1).W))
 
   val memOut = memory.read(pointerReg)
+  io.minimum := heap.io.root
+  val write = WireDefault(0.B)
+  when(write) {
+    memory.write(pointerReg, heap.io.root)
+  }
 
   io.done := 0.B
   heap.io.valid := 0.B
@@ -50,28 +51,45 @@ class Top(params: Heap.Parameters, init: Seq[Int]) extends Module {
     }
     is(State.WaitInsert) {
       stateReg := Mux(heap.io.ready, Mux(pointerReg === init.length.U, State.IssueRemove, State.IssueInsert), State.WaitInsert)
+      when(heap.io.ready && pointerReg === init.length.U) { pointerReg := (init.length - 1).U}
     }
     is(State.IssueRemove) {
       heap.io.op := Heap.Operation.RemoveRoot
       heap.io.valid := 1.B
-      memory.write(pointerReg, heap.io.root)
+      write := 1.B
       pointerReg := pointerReg - 1.U
-      stateReg := State.WaitRemove
+      stateReg := Mux(pointerReg === 0.U, State.Done, State.WaitRemove)
     }
     is(State.WaitRemove) {
-      stateReg := Mux(heap.io.ready, Mux(heap.io.empty, State.Done, State.IssueRemove), State.WaitRemove)
+      stateReg := Mux(heap.io.ready, State.IssueRemove, State.WaitRemove)
     }
     is(State.Done) {
       io.done := 1.B
+      pointerReg := 0.U
       stateReg := State.Done
     }
 
   }
 }
 
-object TopEmitter extends App {
-    //val testFile = args(args.indexOf("--test-file") + 1)
-    //val source = Source.fromFile(testFile)
-    //val testSeq = source.getLines().map(_.toInt).toArray
-    emitVerilog(new Top(Heap.Parameters(16*1024,16,32), Seq.fill(16*1024)(BigInt(32, scala.util.Random).toInt)))
+object Top {
+
+  object State extends ChiselEnum {
+    val Idle, IssueInsert, WaitInsert, IssueRemove, WaitRemove, Done = Value
+  }
+
+  def main(args: Array[String]) = {
+    val k = if(args.contains("-k")) args(args.indexOf("-k") + 1).toInt else 4
+    val w = if(args.contains("-w")) args(args.indexOf("-w") + 1).toInt else 32
+    val targetDir = if(args.contains("--target-dir")) args(args.indexOf("--target-dir") + 1) else "build"
+    val testSeq = if(args.contains("--test-file")) {
+      val testFile = args(args.indexOf("--test-file") + 1)
+      val source = Source.fromFile(testFile)
+      source.getLines().map(BigInt(_, 16)).toArray
+    } else {
+      Array.fill(1024)(BigInt(w,scala.util.Random))
+    }
+    emitVerilog(new Top(Heap.Parameters(nextPow2(testSeq.length), k, w), testSeq), Array("--target-dir",targetDir))
+  }
+
 }

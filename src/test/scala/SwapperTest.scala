@@ -2,6 +2,7 @@
 
 import chisel3._
 import chiseltest._
+import lib.randomParameters
 import org.scalatest.flatspec.AnyFlatSpec
 
 class SwapperTest extends AnyFlatSpec with ChiselScalatestTester {
@@ -9,7 +10,7 @@ class SwapperTest extends AnyFlatSpec with ChiselScalatestTester {
   behavior of "Swapper"
 
   it should "create two write requests" in {
-    test(new Swapper(Heap.Parameters(1024,8,32))) { dut =>
+    test(new Swapper(randomParameters())) { dut =>
 
       val values = Seq(0xDEADBEEFL, 123)
       val indices = Seq(5,20)

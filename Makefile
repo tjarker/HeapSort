@@ -13,6 +13,7 @@ VIVADO_ARGS = -nojournal -log $(BUILD_DIR)/vivado.log -tempDir $(BUILD_DIR)
 
 TEST_FILE ?= test.txt
 K ?= 4
+W ?= 32
 
 all: gen synth
 gen: $(BUILD_DIR)/$(TOP).v
@@ -21,9 +22,9 @@ synth: $(BUILD_DIR)/$(TOP).bit
 clean:
 	rm -rf $(BUILD_DIR)
 
-$(BUILD_DIR)/$(TOP).v: $(SRCS)
+$(BUILD_DIR)/$(TOP).v: $(SRCS) $(TEST_FILE)
 	@mkdir -p $(@D)
-	sbt "runMain $(TOP) --target-dir $(BUILD_DIR) --test-file $(TEST_FILE) --k $(K)"
+	sbt "runMain $(TOP) --target-dir $(BUILD_DIR) --test-file $(TEST_FILE) -k $(K) -w $(W)"
 
 $(BUILD_DIR)/$(TOP).bit: $(BUILD_DIR)/$(TOP).v pinout.xdc $(BUILD_DIR)/synth.tcl
 	vivado $(VIVADO_ARGS) -mode batch -source $(BUILD_DIR)/synth.tcl

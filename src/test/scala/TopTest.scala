@@ -1,18 +1,34 @@
 
 import chisel3._
+import chisel3.util.log2Ceil
 import chiseltest._
+import lib.{randomParameters, uRand}
 import org.scalatest.flatspec.AnyFlatSpec
 
 class TopTest extends AnyFlatSpec with ChiselScalatestTester {
 
   behavior of "Top"
 
-  it should "work" in {
-    val testSeq = Seq.tabulate(8)(i => i)
-    test(new Top(Heap.Parameters(8,4,32), testSeq)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
-      dut.clock.setTimeout(5000)
-      while(!dut.io.done.peek.litToBoolean) dut.clock.step()
+  it should "move the smallest element to address 0" in {
+
+    Seq.fill(10)(randomParameters()).foreach { p =>
+      println(p)
+      val testSeq = Seq.tabulate(p.n)(i => BigInt(p.w, scala.util.Random))
+
+      println(testSeq(0), testSeq.min)
+
+      test(new Top(p, testSeq)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
+        dut.clock.setTimeout(0)
+        while (!dut.io.done.peek.litToBoolean) {
+          dut.clock.step()
+        }
+
+        dut.clock.step(2)
+        dut.io.minimum.expect((testSeq.min & 0x7FFF).U)
+
+      }
     }
   }
+
 
 }

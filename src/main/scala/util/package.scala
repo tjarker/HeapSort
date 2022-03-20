@@ -1,32 +1,15 @@
+import chisel3.util.log2Ceil
+
 import java.io.{File, PrintWriter}
 
 package object util {
 
-  implicit class Transposable(x: Seq[Seq[Int]]) {
-    def transposed: Seq[Seq[Int]] = Seq.tabulate(x.head.length)(i => x.map(_(i)))
-  }
-  def transpose(x: Seq[Seq[Int]]): Seq[Seq[Int]] =
-    Seq.tabulate(x.head.length)(i => x.map(_(i)))
-
-  def splitIntoBanks(k: Int)(seq: Seq[Int]): Seq[Seq[Int]] = {
-    val grouped = createGroups(k)(seq.tail)
-    transpose(grouped :+ Seq(seq.head,0,0,0))
-  }
-  def getRootBankIndex(k: Int, n: Int): Int = (n-2) / k
-
-  def createGroups(k: Int)(seq: Seq[Int]): Seq[Seq[Int]] =
-    seq.grouped(k).map(_.padTo(k,0)).toSeq
-
-  def createBuildDir(): Unit = {
-    val dir = new File("build")
-    if(!dir.exists()) dir.mkdir()
-  }
-
-  def writeHexSeqToFile(seq: Seq[Int], fileName: String): Unit = {
-    println(seq.toList)
+  def writeHexSeqToFile(seq: Seq[BigInt], fileName: String): Unit = {
     val writer = new PrintWriter(new File(fileName))
-    writer.write(seq.map(_.toHexString).mkString("\n"))
+    writer.write(seq.map(_.toString(16)).mkString("\n"))
     writer.close()
   }
+
+  def nextPow2(x: Int): Int = scala.math.pow(2, log2Ceil(x)).toInt
 
 }

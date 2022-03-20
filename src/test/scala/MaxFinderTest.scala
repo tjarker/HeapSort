@@ -1,6 +1,7 @@
 
 import chisel3._
 import chiseltest._
+import lib.randomParameters
 import org.scalatest.flatspec.AnyFlatSpec
 
 class MaxFinderTest extends AnyFlatSpec with ChiselScalatestTester {
@@ -8,7 +9,7 @@ class MaxFinderTest extends AnyFlatSpec with ChiselScalatestTester {
   behavior of "MaxFinder"
 
   it should "find max" in {
-    test(new MaxFinder(Heap.Parameters(32,4,8))).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
+    test(new MaxFinder(randomParameters())).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
 
       dut.clock.step(2)
 
