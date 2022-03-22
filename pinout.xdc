@@ -110,7 +110,7 @@ set_property PACKAGE_PIN L1  [get_ports {io_minimum[14]}]
 
 ##Pmod Header JB
 set_property PACKAGE_PIN A14 [get_ports {reset}]
-#set_property PACKAGE_PIN A16 [get_ports {clock}]
+set_property PACKAGE_PIN A16 [get_ports {io_go}]
 #set_property PACKAGE_PIN B15 [get_ports {JB[2]}]
 #set_property PACKAGE_PIN B16 [get_ports {JB[3]}]
 #set_property PACKAGE_PIN A15 [get_ports {JB[4]}]

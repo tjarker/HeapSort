@@ -13,6 +13,7 @@ class Top(params: Heap.Parameters, init: Seq[BigInt]) extends Module {
 
   val io = IO(new Bundle {
     val done = Output(Bool())
+    val go = Input(Bool())
     val minimum = Output(UInt(15.W))
   })
 
@@ -26,11 +27,11 @@ class Top(params: Heap.Parameters, init: Seq[BigInt]) extends Module {
 
   val heap = Module(new Heap(params))
 
-  val stateReg = RegInit(State.IssueInsert)
+  val stateReg = RegInit(State.Idle)
   val pointerReg = RegInit(0.U(log2Ceil(init.length + 1).W))
 
   val memOut = memory.read(pointerReg)
-  io.minimum := heap.io.root
+  io.minimum := memOut
   val write = WireDefault(0.B)
   when(write) {
     memory.write(pointerReg, heap.io.root)
@@ -42,6 +43,9 @@ class Top(params: Heap.Parameters, init: Seq[BigInt]) extends Module {
   heap.io.newValue := DontCare
 
   switch(stateReg) {
+    is(State.Idle) {
+      stateReg := Mux(RegNext(RegNext(io.go)), State.IssueInsert, State.Idle)
+    }
     is(State.IssueInsert) {
       heap.io.op := Heap.Operation.Insert
       heap.io.newValue := memOut
@@ -89,6 +93,7 @@ object Top {
     } else {
       Array.fill(1024)(BigInt(w,scala.util.Random))
     }
+    println(testSeq.mkString("Array(", ", ", ")"))
     emitVerilog(new Top(Heap.Parameters(nextPow2(testSeq.length), k, w), testSeq), Array("--target-dir",targetDir))
   }
 

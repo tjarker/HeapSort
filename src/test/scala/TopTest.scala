@@ -17,8 +17,11 @@ class TopTest extends AnyFlatSpec with ChiselScalatestTester {
 
       println(testSeq(0), testSeq.min)
 
-      test(new Top(p, testSeq)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
+      test(new Top(p, testSeq)) { dut =>
         dut.clock.setTimeout(0)
+
+        dut.io.go.poke(1.B)
+
         while (!dut.io.done.peek.litToBoolean) {
           dut.clock.step()
         }
