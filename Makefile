@@ -14,10 +14,25 @@ VIVADO_ARGS = -nojournal -log $(BUILD_DIR)/vivado.log -tempDir $(BUILD_DIR)
 TEST_FILE ?= test.txt
 K ?= 4
 W ?= 32
+N ?= 1024
 
 all: gen synth
 gen: $(BUILD_DIR)/$(TOP).v
 synth: $(BUILD_DIR)/$(TOP).bit
+
+
+.Phony:
+rtl-test:
+	sbt test
+
+.Phony:
+test-files/%.txt:
+	@echo $@
+	sbt "runMain util.TestGenerator	 -w $(W) -n $(N) -o $@"
+
+.Phony:
+performance-table:
+	sbt "test:runMain Performance"
 
 clean:
 	rm -rf $(BUILD_DIR)
