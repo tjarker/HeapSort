@@ -10,7 +10,7 @@ class SwapperTest extends AnyFlatSpec with ChiselScalatestTester {
   behavior of "Swapper"
 
   it should "create two write requests" in {
-    test(new Swapper(randomParameters())) { dut =>
+    test(new Swapper(Heap.Parameters(32, 4, 32))) { dut =>
 
       val values = Seq(0xDEADBEEFL, 123)
       val indices = Seq(5,20)
