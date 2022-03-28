@@ -26,9 +26,9 @@ rtl-test:
 	sbt test
 
 .Phony:
-test-files/%.txt:
+test-files/%:
 	@echo $@
-	sbt "runMain util.TestGenerator	 -w $(W) -n $(N) -o $@"
+	sbt "runMain util.TestGenerator	 -w $(W) -n $(N) -o $(notdir $@)"
 
 .Phony:
 performance-table:
