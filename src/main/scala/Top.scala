@@ -1,10 +1,11 @@
 import Top.State
-import util.{writeHexSeqToFile, nextPow2}
+import util.{nextPow2, writeHexSeqToFile}
 import chisel3._
 import chisel3.util.experimental.loadMemoryFromFileInline
-import firrtl.annotations.MemorySynthInit
+import firrtl.annotations.{MemoryArrayInitAnnotation, MemorySynthInit}
 import chisel3.experimental.{ChiselAnnotation, ChiselEnum, annotate}
 import chisel3.util._
+
 import scala.io.Source
 
 
@@ -17,21 +18,19 @@ class Top(params: Heap.Parameters, init: Seq[BigInt]) extends Module {
     val minimum = Output(UInt(15.W))
   })
 
-  annotate(new ChiselAnnotation {
-    override def toFirrtl = MemorySynthInit
-  })
-
   val memory = SyncReadMem(init.length, UInt(w.W))
-  writeHexSeqToFile(init, "build/memory-initialization.txt")
-  loadMemoryFromFileInline(memory, "build/memory-initialization.txt")
+  /*
+  annotate(new ChiselAnnotation {
+    override def toFirrtl = MemoryArrayInitAnnotation(memory.toTarget, init)
+  })*/
 
   val heap = Module(new Heap(params))
 
   val stateReg = RegInit(State.Idle)
   val pointerReg = RegInit(0.U(log2Ceil(init.length + 1).W))
 
-  val memOut = memory.read(pointerReg)
-  io.minimum := memOut
+  val romOut = VecInit(init.map(_.U(w.W))).apply(pointerReg)
+  io.minimum := romOut
   val write = WireDefault(0.B)
   when(write) {
     memory.write(pointerReg, heap.io.root)
@@ -44,11 +43,12 @@ class Top(params: Heap.Parameters, init: Seq[BigInt]) extends Module {
 
   switch(stateReg) {
     is(State.Idle) {
-      stateReg := Mux(RegNext(RegNext(io.go)), State.IssueInsert, State.Idle)
+      val go = RegNext(RegNext(io.go))
+      stateReg := Mux(go, State.IssueInsert, State.Idle)
     }
     is(State.IssueInsert) {
       heap.io.op := Heap.Operation.Insert
-      heap.io.newValue := memOut
+      heap.io.newValue := romOut
       heap.io.valid := 1.B
       pointerReg := pointerReg + 1.U
       stateReg := State.WaitInsert
@@ -70,6 +70,7 @@ class Top(params: Heap.Parameters, init: Seq[BigInt]) extends Module {
     is(State.Done) {
       io.done := 1.B
       pointerReg := 0.U
+      io.minimum := memory.read(0.U)
       stateReg := State.Done
     }
 
@@ -91,9 +92,10 @@ object Top {
       val source = Source.fromFile(testFile)
       source.getLines().map(BigInt(_, 16)).toArray
     } else {
-      Array.fill(1024)(BigInt(w,scala.util.Random))
+      Array.fill(4096)(BigInt(w,scala.util.Random))
     }
-    println(testSeq.mkString("Array(", ", ", ")"))
+    println("Initial: %8x - %32s".format(testSeq.head, testSeq.head.toString(2)))
+    println("Min:     %8x - %32s".format(testSeq.min, testSeq.min.toString(2)))
     emitVerilog(new Top(Heap.Parameters(nextPow2(testSeq.length), k, w), testSeq), Array("--target-dir",targetDir))
   }
 
