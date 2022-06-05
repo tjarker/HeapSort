@@ -1,48 +1,76 @@
 
 import chisel3._
 import HeapTest.HeapWrapper
+import Performance.args
 import chiseltest._
 
 import java.io.{File, PrintWriter}
+import scala.io.Source
 
 /*
 Builds a performance matrix for multiples n and k value combinations and outputs it as a markdown table
  */
 object Performance extends App {
 
-  val ks = (1 to 5).map(scala.math.pow(2, _).toInt)
-  val ns = (5 to 13) map (scala.math.pow(2, _).toInt)
+  val ks = (1 to 7).map(scala.math.pow(2, _).toInt)
+  val files = new File("test-files").listFiles(_.isFile)
+
+  val writer = new PrintWriter(new File(args.head))
+
+  writer.println(s"k, n, w, order, insertion, removal")
 
   val matrix = ks.map { k =>
-    ns.map { n =>
+    files.sorted.map { file =>
+
+      val source = Source.fromFile(file)
+      val values = source.getLines().map(BigInt(_, 16)).toArray
+      source.close()
+
+      val n = values.length
+      val order = if(file.getName.contains("reverse")) "reverse" else if(file.getName.contains("sorted")) "sorted" else "random"
+
+      print(s"$k, $n, 32, $order, ")
+      writer.print(s"$k, $n, 32, $order, ")
+
       val params = Heap.Parameters(n, k, 32)
-      val values = Seq.fill(params.n)(BigInt(params.w, scala.util.Random))
-      var insertCycles: Option[Seq[Int]] = None
-      var removeCycles: Option[Seq[Int]] = None
 
-      println(params)
       RawTester.test(new Heap(params)) { dut =>
-        insertCycles = Some(values.map(v => dut.insert(v.U)).filter(_ > 1))
-        removeCycles = Some(values.sorted.reverse.map { v =>
-          val (cycles, value) = dut.removeRoot()
-          cycles
-        }.filter(_ > 1))
+        val insertion = values.map(v => dut.insert(v.U)).sum
+        print(s"$insertion, ")
+        writer.print(s"$insertion, ")
+        val removal = values.sorted.reverse.map(_ => dut.removeRoot()._1).sum
+        println(removal)
+        writer.println(removal)
       }
-
-      (insertCycles.get.sum / insertCycles.get.length, removeCycles.get.sum / removeCycles.get.length)
     }
   }
 
-  val out = new StringBuilder
-  out.append("|       |" + ns.map(v => " n=%-4d".format(v)).mkString(" | ") + "\n")
-  out.append("| :-    |" + ns.map(_ => "  :-:  ").mkString(" | ") + "\n")
-  out.append(matrix.zip(ks).map { case (row, k) => "| k=%-3d |".format(k) + row.map(v => "%3d/%-3d".format(v._1, v._2)).mkString(" | ") }.mkString("\n"))
-  out.append("\n\nformat: avg. number of cycles needed for {insertion}/{removal}")
-
-  val writer = new PrintWriter(new File("doc/CycleTable.md"))
-  writer.write(out.toString())
   writer.close()
 
-  println(out.toString())
+}
 
+
+object PowerFileParser extends App {
+
+  val files = new File("energy").listFiles(_.isFile)
+
+  println(files.mkString("Array(", ", ", ")"))
+
+  val powers = files.map { file =>
+    val source = Source.fromFile(file)
+    val number = source.getLines().filter {
+      s => s.contains("Total On-Chip Power (W)")
+    }.map {s =>
+      "\\d*\\.\\d*".r.findFirstIn(s).get
+    }.toArray.head
+    source.close()
+    val Seq(n,k) = "[0-9]+".r.findAllIn(file.getName).toSeq
+    (k.toInt,n.toInt,number)
+  }
+
+  println(powers.sortBy(_._1.toInt).mkString("\n"))
+  val writer = new PrintWriter(new File("heap-sort-power.csv"))
+  writer.println("k,n,power")
+  writer.println(powers.sorted.map { case (k,n,power) => s"$k, ${n * 1024}, $power"}.mkString("\n"))
+  writer.close()
 }

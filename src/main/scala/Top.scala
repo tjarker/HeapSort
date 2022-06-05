@@ -1,10 +1,10 @@
 import Top.State
-import util.{nextPow2, writeHexSeqToFile}
+import util.{nextPow2, falling, rising}
+import util.Delay
 import chisel3._
-import chisel3.util.experimental.loadMemoryFromFileInline
-import firrtl.annotations.{MemoryArrayInitAnnotation, MemorySynthInit}
-import chisel3.experimental.{ChiselAnnotation, ChiselEnum, annotate}
 import chisel3.util._
+import firrtl.annotations.MemoryArrayInitAnnotation
+import chisel3.experimental.{ChiselAnnotation, ChiselEnum, annotate}
 
 import scala.io.Source
 
@@ -19,18 +19,20 @@ class Top(params: Heap.Parameters, init: Seq[BigInt]) extends Module {
   })
 
   val memory = SyncReadMem(init.length, UInt(w.W))
-  /*
+
   annotate(new ChiselAnnotation {
     override def toFirrtl = MemoryArrayInitAnnotation(memory.toTarget, init)
-  })*/
+  })
 
   val heap = Module(new Heap(params))
 
   val stateReg = RegInit(State.Idle)
   val pointerReg = RegInit(0.U(log2Ceil(init.length + 1).W))
 
-  val romOut = VecInit(init.map(_.U(w.W))).apply(pointerReg)
-  io.minimum := romOut
+  val syncedGo = Delay(io.go, 2)
+
+  val memOut = memory.read(pointerReg)
+  io.minimum := memOut
   val write = WireDefault(0.B)
   when(write) {
     memory.write(pointerReg, heap.io.root)
@@ -43,12 +45,12 @@ class Top(params: Heap.Parameters, init: Seq[BigInt]) extends Module {
 
   switch(stateReg) {
     is(State.Idle) {
-      val go = RegNext(RegNext(io.go))
-      stateReg := Mux(go, State.IssueInsert, State.Idle)
+      stateReg := Mux(syncedGo, State.IssueInsert, State.Idle)
+      pointerReg := Mux(syncedGo, pointerReg + 1.U, 0.U)
     }
     is(State.IssueInsert) {
       heap.io.op := Heap.Operation.Insert
-      heap.io.newValue := romOut
+      heap.io.newValue := memOut
       heap.io.valid := 1.B
       pointerReg := pointerReg + 1.U
       stateReg := State.WaitInsert
@@ -70,7 +72,6 @@ class Top(params: Heap.Parameters, init: Seq[BigInt]) extends Module {
     is(State.Done) {
       io.done := 1.B
       pointerReg := 0.U
-      io.minimum := memory.read(0.U)
       stateReg := State.Done
     }
 

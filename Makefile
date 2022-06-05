@@ -15,6 +15,9 @@ TEST_FILE ?= test.txt
 K ?= 4
 W ?= 32
 N ?= 1024
+KS = 2 4 8 16 32 64 128
+TESTS = $(wildcard test-files/*K-random.txt)
+ENERGY_FILES = $(basename $(notdir $(TESTS)))
 
 all: gen synth
 gen: $(BUILD_DIR)/$(TOP).v
@@ -34,10 +37,20 @@ test-files/%:
 performance-table:
 	sbt "test:runMain Performance"
 
+
+$(ENERGY_FILES):
+	@for k in ${KS}; do \
+  		echo $@_$${k}.rpt; \
+  		$(MAKE) clean synth TEST_FILE=test-files/$(notdir $@).txt W=32 K=$${k}; \
+  		cp $(BUILD_DIR)/power.rpt energy/$@_$${k}.rpt; \
+	done
+
+energy: $(ENERGY_FILES)
+
 clean:
 	rm -rf $(BUILD_DIR)
 
-$(BUILD_DIR)/$(TOP).v: $(SRCS) $(TEST_FILE)
+$(BUILD_DIR)/$(TOP).v: $(SRCS)
 	@mkdir -p $(@D)
 	sbt "runMain $(TOP) --target-dir $(BUILD_DIR) --test-file $(TEST_FILE) -k $(K) -w $(W)"
 
@@ -59,6 +72,7 @@ place_design\n\
 route_design\n\
 report_timing_summary -file $(BUILD_DIR)/sta.rpt\n\
 report_utilization -file $(BUILD_DIR)/util.rpt\n\
+report_power -file build/power.rpt\n\
 write_bitstream $(BUILD_DIR)/$(TOP).bit -force" > $(BUILD_DIR)/synth.tcl
 
 $(BUILD_DIR)/config.tcl:

@@ -9,7 +9,6 @@ object Heap {
                              k: Int, // Order of the heap
                              w: Int, // item width
                            ) {
-    require(isPow2(n), "The maximum heap size needs to be a power of 2")
     require(isPow2(k), "The order of the heap needs to be a power of 2")
   }
   object Operation extends ChiselEnum {

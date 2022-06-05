@@ -1,5 +1,7 @@
 import chisel3.util.log2Ceil
 
+
+import chisel3._
 import java.io.{File, PrintWriter}
 
 package object util {
@@ -11,5 +13,9 @@ package object util {
   }
 
   def nextPow2(x: Int): Int = scala.math.pow(2, log2Ceil(x)).toInt
+
+
+  def rising(x: Bool): Bool = !RegNext(x) && x
+  def falling(x: Bool): Bool = RegNext(x) && !x
 
 }
