@@ -12,76 +12,97 @@ import scala.io.Source
 class Top(params: Heap.Parameters, init: Seq[BigInt]) extends Module {
   import params._
 
+  val switchingPeriod = 500
+
   val io = IO(new Bundle {
-    val done = Output(Bool())
-    val go = Input(Bool())
-    val minimum = Output(UInt(15.W))
+    val leds = Output(UInt(4.W))
+    val rgb = Output(Bool())
   })
 
-  val memory = SyncReadMem(init.length, UInt(w.W))
+  withReset(!reset.asBool) {
 
-  annotate(new ChiselAnnotation {
-    override def toFirrtl = MemoryArrayInitAnnotation(memory.toTarget, init)
-  })
+    val memory = SyncReadMem(init.length, UInt(w.W))
 
-  val heap = Module(new Heap(params))
+    annotate(new ChiselAnnotation {
+      override def toFirrtl = MemoryArrayInitAnnotation(memory.toTarget, init)
+    })
 
-  val stateReg = RegInit(State.Idle)
-  val pointerReg = RegInit(0.U(log2Ceil(init.length + 1).W))
+    val heap = Module(new Heap(params))
 
-  val syncedGo = Delay(io.go, 2)
+    val stateReg = RegInit(State.Setup)
+    val pointerReg = RegInit(0.U(log2Ceil(init.length + 1).W))
 
-  val memOut = memory.read(pointerReg)
-  io.minimum := memOut
-  val write = WireDefault(0.B)
-  when(write) {
-    memory.write(pointerReg, heap.io.root)
-  }
+    val memOut = memory.read(pointerReg)
 
-  io.done := 0.B
-  heap.io.valid := 0.B
-  heap.io.op := DontCare
-  heap.io.newValue := DontCare
-
-  switch(stateReg) {
-    is(State.Idle) {
-      stateReg := Mux(syncedGo, State.IssueInsert, State.Idle)
-      pointerReg := Mux(syncedGo, pointerReg + 1.U, 0.U)
-    }
-    is(State.IssueInsert) {
-      heap.io.op := Heap.Operation.Insert
-      heap.io.newValue := memOut
-      heap.io.valid := 1.B
-      pointerReg := pointerReg + 1.U
-      stateReg := State.WaitInsert
-    }
-    is(State.WaitInsert) {
-      stateReg := Mux(heap.io.ready, Mux(pointerReg === init.length.U, State.IssueRemove, State.IssueInsert), State.WaitInsert)
-      when(heap.io.ready && pointerReg === init.length.U) { pointerReg := (init.length - 1).U}
-    }
-    is(State.IssueRemove) {
-      heap.io.op := Heap.Operation.RemoveRoot
-      heap.io.valid := 1.B
-      write := 1.B
-      pointerReg := pointerReg - 1.U
-      stateReg := Mux(pointerReg === 0.U, State.Done, State.WaitRemove)
-    }
-    is(State.WaitRemove) {
-      stateReg := Mux(heap.io.ready, State.IssueRemove, State.WaitRemove)
-    }
-    is(State.Done) {
-      io.done := 1.B
-      pointerReg := 0.U
-      stateReg := State.Done
+    val write = WireDefault(0.B)
+    when(write) {
+      memory.write(pointerReg, heap.io.root)
     }
 
+    heap.io.valid := 0.B
+    heap.io.op := DontCare
+    heap.io.newValue := DontCare
+
+    val runCounter = RegInit(0.U(log2Ceil(switchingPeriod).W))
+    val blinkReg = RegInit(0.B)
+
+    val rgbController = Module(new LedController(50000000))
+    io.leds := blinkReg
+    rgbController.io.colors.foreach { c =>
+      c.r := 0.U
+      c.g := 0.U
+      c.b := 0.U
+    }
+    io.rgb := rgbController.io.out
+
+    switch(stateReg) {
+      is(State.Setup) {
+        stateReg := State.IssueInsert
+        pointerReg := pointerReg + 1.U
+      }
+      is(State.IssueInsert) {
+        heap.io.op := Heap.Operation.Insert
+        heap.io.newValue := memOut
+        heap.io.valid := 1.B
+        pointerReg := pointerReg + 1.U
+        stateReg := State.WaitInsert
+      }
+      is(State.WaitInsert) {
+        stateReg := Mux(heap.io.ready, Mux(pointerReg === init.length.U, State.IssueRemove, State.IssueInsert), State.WaitInsert)
+        when(heap.io.ready && pointerReg === init.length.U) {
+          pointerReg := (init.length - 1).U
+        }
+      }
+      is(State.IssueRemove) {
+        heap.io.op := Heap.Operation.RemoveRoot
+        heap.io.valid := 1.B
+        write := 1.B
+        pointerReg := pointerReg - 1.U
+        stateReg := Mux(pointerReg === 0.U, State.Done, State.WaitRemove)
+      }
+      is(State.WaitRemove) {
+        stateReg := Mux(heap.io.ready, State.IssueRemove, State.WaitRemove)
+      }
+      is(State.Done) {
+        runCounter := runCounter + 1.U
+
+        when((runCounter === switchingPeriod.U && !blinkReg) || (runCounter === 15.U && blinkReg)) {
+          runCounter := 0.U
+          blinkReg := !blinkReg
+        }
+
+        pointerReg := 0.U
+        stateReg := State.Setup
+      }
+
+    }
   }
 }
 
 object Top {
 
   object State extends ChiselEnum {
-    val Idle, IssueInsert, WaitInsert, IssueRemove, WaitRemove, Done = Value
+    val Setup, IssueInsert, WaitInsert, IssueRemove, WaitRemove, Done = Value
   }
 
   def main(args: Array[String]) = {
