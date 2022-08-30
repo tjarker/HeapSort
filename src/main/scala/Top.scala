@@ -122,3 +122,16 @@ object Top {
   }
 
 }
+
+object ManualSetup extends App {
+
+  val testFile = "4K-sorted.txt"
+  val k = 2
+  val w = 32
+
+  val source = Source.fromFile(testFile)
+  val testSeq = source.getLines().map(BigInt(_, 16)).toArray
+
+  emitVerilog(new Top(Heap.Parameters(nextPow2(testSeq.length), k, w), testSeq), Array("--target-dir","build"))
+
+}
