@@ -9,10 +9,8 @@ import chisel3.experimental.{ChiselAnnotation, ChiselEnum, annotate}
 import scala.io.Source
 
 
-class Top(params: Heap.Parameters, init: Seq[BigInt]) extends Module {
+class Top(params: Heap.Parameters, init: Seq[BigInt], lowCycles: Int = 500, highCycles: Int = 15) extends Module {
   import params._
-
-  val switchingPeriod = 500
 
   val io = IO(new Bundle {
     val leds = Output(UInt(4.W))
@@ -43,7 +41,7 @@ class Top(params: Heap.Parameters, init: Seq[BigInt]) extends Module {
     heap.io.op := DontCare
     heap.io.newValue := DontCare
 
-    val runCounter = RegInit(0.U(log2Ceil(switchingPeriod).W))
+    val runCounter = RegInit(0.U(log2Ceil(lowCycles).W))
     val blinkReg = RegInit(0.B)
 
     val rgbController = Module(new LedController(50000000))
@@ -86,7 +84,7 @@ class Top(params: Heap.Parameters, init: Seq[BigInt]) extends Module {
       is(State.Done) {
         runCounter := runCounter + 1.U
 
-        when((runCounter === switchingPeriod.U && !blinkReg) || (runCounter === 15.U && blinkReg)) {
+        when((runCounter === lowCycles.U && !blinkReg) || (runCounter === highCycles.U && blinkReg)) {
           runCounter := 0.U
           blinkReg := !blinkReg
         }
@@ -128,10 +126,12 @@ object ManualSetup extends App {
   val testFile = "4K-sorted.txt"
   val k = 2
   val w = 32
+  val lowCycles = 500
+  val highCycles = 15
 
   val source = Source.fromFile(testFile)
   val testSeq = source.getLines().map(BigInt(_, 16)).toArray
 
-  emitVerilog(new Top(Heap.Parameters(nextPow2(testSeq.length), k, w), testSeq), Array("--target-dir","build"))
+  emitVerilog(new Top(Heap.Parameters(nextPow2(testSeq.length), k, w), testSeq, lowCycles, highCycles), Array("--target-dir","build"))
 
 }
